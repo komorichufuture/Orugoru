@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simple Piano v2 (2 Rows / 3 Oct)</title>
+<title>Music Box Keyboard</title>
+
 <style>
   :root{
     --bg:#0b0f14;
@@ -26,13 +27,37 @@
     padding:10px 12px;
     text-align:center;
   }
-  header h1{ margin:0; font-size:15px; font-weight:700; }
-  header p{ margin:6px 0 0; font-size:12px; color:var(--muted); }
+  header h1{
+    margin:0;
+    font-size:15px;
+    font-weight:700;
+  }
+  header p{
+    margin:6px 0 0;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .controls{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    padding:6px 0 8px;
+  }
+  button{
+    background:var(--panel);
+    color:var(--text);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:12px;
+  }
+  button:active{ background:var(--accent); }
 
   .wrap{
     width:min(760px, 100vw);
     margin:0 auto;
-    padding:10px 10px 16px;
+    padding:8px 10px 16px;
     display:flex;
     flex-direction:column;
     gap:10px;
@@ -52,18 +77,18 @@
     font-size:12px;
     color:var(--muted);
   }
+
   .kbd{
     position:relative;
     display:grid;
-    grid-template-columns:repeat(14, 1fr); /* 2オクターブ=白鍵14本 */
+    grid-template-columns:repeat(14, 1fr);
     gap:4px;
     border-radius:12px;
     overflow:hidden;
   }
-
-  /* 下段を主役（少し高め） */
-  .kbd.low{ height:44vh; min-height:280px; }
-  .kbd.high{ height:32vh; min-height:210px; }
+  /* A案：スマホ縦最適（下段主役） */
+  .kbd.low{ height:34vh; min-height:220px; }
+  .kbd.high{ height:26vh; min-height:180px; }
 
   .white{
     background:var(--white);
@@ -105,17 +130,29 @@
 
   @media (max-width:420px){
     .kbd{ gap:3px; }
-    .white{ font-size:9px; padding-bottom:6px; border-radius:9px; }
-    .black{ font-size:8px; padding-bottom:6px; border-radius:9px; }
-    .row{ padding:9px; border-radius:12px; }
+    .white{ font-size:9px; padding-bottom:6px; }
+    .black{ font-size:8px; padding-bottom:6px; }
   }
 </style>
 </head>
+
 <body>
 <header>
-  <h1>Tap to Play</h1>
-  <p>上段: C5〜B6 / 下段: C4〜B5（3オクターブを2段表示）</p>
+  <h1>Music Box Keyboard</h1>
+  <p>上段 C5–B6 / 下段 C4–B5（JSON再生対応）</p>
 </header>
+
+<div class="controls">
+  <button id="loadJson">Load JSON</button>
+  <button id="playJson">▶ Play</button>
+  <button id="stopJson">■ Stop</button>
+
+  <!-- Recording UI -->
+  <button id="recToggle">● Rec</button>
+  <button id="downloadRec">⬇ JSON</button>
+</div>
+
+<input type="file" id="jsonFile" accept=".json" style="display:none">
 
 <div class="wrap">
   <section class="row">
@@ -133,7 +170,6 @@
   </section>
 </div>
 
-<!-- ↓実ファイル名に合わせて：app.js か apps.js -->
 <script src="app.js"></script>
 </body>
 </html>
