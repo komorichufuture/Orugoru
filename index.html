@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simple Piano v2 (3 Octaves)</title>
+<title>Simple Piano v2 (2 Rows / 3 Oct)</title>
 <style>
   :root{
     --bg:#0b0f14;
+    --panel:#0f1622;
     --white:#f5f5f5;
     --black:#101318;
     --accent:#4da3ff;
@@ -25,34 +26,44 @@
     padding:10px 12px;
     text-align:center;
   }
-  header h1{
-    margin:0;
-    font-size:15px;
-    font-weight:700;
+  header h1{ margin:0; font-size:15px; font-weight:700; }
+  header p{ margin:6px 0 0; font-size:12px; color:var(--muted); }
+
+  .wrap{
+    width:min(760px, 100vw);
+    margin:0 auto;
+    padding:10px 10px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
   }
-  header p{
-    margin:6px 0 0;
+
+  .row{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:14px;
+    padding:10px;
+  }
+  .row-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:0 0 8px;
     font-size:12px;
     color:var(--muted);
   }
-
-  .piano{
-    width:100vw;
-    margin:0 auto;
-    padding:10px 10px 16px;
-  }
-
-  /* 3オクターブ（白鍵21本）を画面内に収める */
-  .white-keys{
+  .kbd{
     position:relative;
     display:grid;
-    grid-template-columns:repeat(21, 1fr);
-    gap:3px;
-    height:72vh;
-    min-height:360px;
-    max-width:980px;       /* PCで無駄に広がりすぎ防止 */
-    margin:0 auto;
+    grid-template-columns:repeat(14, 1fr); /* 2オクターブ=白鍵14本 */
+    gap:4px;
+    border-radius:12px;
+    overflow:hidden;
   }
+
+  /* 下段を主役（少し高め） */
+  .kbd.low{ height:44vh; min-height:280px; }
+  .kbd.high{ height:32vh; min-height:210px; }
 
   .white{
     background:var(--white);
@@ -66,12 +77,8 @@
     user-select:none;
     -webkit-tap-highlight-color:transparent;
   }
-  .white:active{
-    background:var(--accent);
-    color:#fff;
-  }
+  .white:active{ background:var(--accent); color:#fff; }
 
-  /* 黒鍵は白鍵の上に重ねる */
   .black-layer{
     position:absolute;
     left:0; right:0; top:0;
@@ -97,25 +104,36 @@
   .black:active{ background:var(--accent); }
 
   @media (max-width:420px){
-    .white{ font-size:9px; padding-bottom:6px; }
+    .kbd{ gap:3px; }
+    .white{ font-size:9px; padding-bottom:6px; border-radius:9px; }
     .black{ font-size:8px; padding-bottom:6px; border-radius:9px; }
-    .white-keys{ gap:2px; }
+    .row{ padding:9px; border-radius:12px; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>Tap to Play (3 Octaves)</h1>
-  <p>C3〜B5（白鍵21 / 黒鍵15）</p>
+  <h1>Tap to Play</h1>
+  <p>上段: C5〜B6 / 下段: C4〜B5（3オクターブを2段表示）</p>
 </header>
 
-<div class="piano">
-  <div class="white-keys" id="whiteKeys">
-    <div class="black-layer" id="blackLayer"></div>
-  </div>
+<div class="wrap">
+  <section class="row">
+    <div class="row-title"><span>High</span><span>C5–B6</span></div>
+    <div class="kbd high" id="kbdHigh">
+      <div class="black-layer" id="blackHigh"></div>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="row-title"><span>Low</span><span>C4–B5</span></div>
+    <div class="kbd low" id="kbdLow">
+      <div class="black-layer" id="blackLow"></div>
+    </div>
+  </section>
 </div>
 
-<!-- ↓ここは実ファイル名に合わせて！ app.js か apps.js -->
+<!-- ↓実ファイル名に合わせて：app.js か apps.js -->
 <script src="app.js"></script>
 </body>
 </html>
