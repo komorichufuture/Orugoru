@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>円盤型オルゴール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            touch-action: none;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        .play-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .stop-btn {
+            background: #f44336;
+            color: white;
+        }
+        
+        .clear-btn {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .tempo-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+        
+        .tempo-control label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .tempo-control input {
+            width: 100px;
+        }
+        
+        .tempo-control span {
+            color: #666;
+            min-width: 60px;
+        }
+        
+        #canvas {
+            display: block;
+            margin: 0 auto;
+            background: #f5f5f5;
+            border-radius: 10px;
+            cursor: pointer;
+            touch-action: none;
+        }
+        
+        .info {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        /* --- MusicXML --- */
+        .musicxml {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid #eee;
+        }
+
+        .musicxml h2 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .musicxml .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .musicxml input[type="file"] {
+            font-size: 12px;
+        }
+
+        .musicxml .mini {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+
+        .musicxml .mini:active {
+            transform: scale(0.97);
+        }
+
+        .musicxml .status {
+            font-size: 12px;
+            color: #555;
+            text-align: center;
+            min-height: 16px;
+        }
+
+        #osmdContainer {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 10px;
+            max-height: 260px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 円盤型オルゴール</h1>
+        
+        <div class="controls">
+            <button class="play-btn" id="recordBtn">⏺ 録音開始</button>
+            <button class="stop-btn" id="stopRecordBtn" disabled>⏹ 録音停止</button>
+        </div>
+        
+        <div class="controls">
+            <button class="play-btn" id="playBtn" disabled>▶ 再生</button>
+            <button class="stop-btn" id="stopBtn" disabled>⏹ 停止</button>
+            <button class="clear-btn" id="clearBtn" disabled>🗑 クリア</button>
+        </div>
+        
+        <div class="controls">
+            <button style="background: #9C27B0; color: white;" id="exportJsonBtn" disabled>📄 JSON出力</button>
+            <button style="background: #00BCD4; color: white;" id="exportAudioBtn" disabled>🎵 音声出力</button>
+        </div>
+
+        <div class="musicxml" style="margin-top:10px; padding-top:12px; border-top:1px dashed #e6e6e6;">
+            <h2>JSON → 再生（このアプリのJSON / 自作JSON）</h2>
+            <div class="row">
+                <input type="file" id="jsonFile" accept=".json" />
+                <button class="mini" id="loadJsonBtn" style="background:#263238;color:#fff;">📥 読み込み</button>
+                <button class="mini" id="jsonPlayBtn" style="background:#4CAF50;color:#fff;" disabled>▶ 再生</button>
+                <button class="mini" id="jsonStopBtn" style="background:#f44336;color:#fff;" disabled>⏹ 停止</button>
+            </div>
+            <div class="status" id="jsonStatus">まだJSONが読み込まれていません</div>
+        </div>
+
+        
+        <canvas id="canvas" width="400" height="400"></canvas>
+        
+        <div class="legend" id="legend"></div>
+
+        <div class="info">
+            録音ボタンを押してから円盤をタップして演奏<br>
+            タップごとに音が鳴ります
+        </div>
+
+        <div class="musicxml">
+            <h2>MusicXML（楽譜）→ 表示＆再生</h2>
+            <div class="row">
+                <input type="file" id="musicXmlFile" accept=".xml,.musicxml" />
+                <button class="mini" id="loadMusicXmlBtn" style="background:#263238;color:#fff;">📥 読み込み</button>
+                <button class="mini" id="mxPlayBtn" style="background:#4CAF50;color:#fff;" disabled>▶ 再生</button>
+                <button class="mini" id="mxPauseBtn" style="background:#607D8B;color:#fff;" disabled>⏸ 一時停止</button>
+                <button class="mini" id="mxStopBtn" style="background:#f44336;color:#fff;" disabled>⏹ 停止</button>
+            </div>
+            <div class="status" id="mxStatus">まだMusicXMLが読み込まれていません</div>
+            <div id="osmdContainer" aria-label="MusicXML score"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.3/build/opensheetmusicdisplay.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/osmd-audio-player/umd/OsmdAudioPlayer.min.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopRecordBtn = document.getElementById('stopRecordBtn');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportJsonBtn = document.getElementById('exportJsonBtn');
+        const exportAudioBtn = document.getElementById('exportAudioBtn');
+
+        // MusicXML UI
+        const musicXmlFile = document.getElementById('musicXmlFile');
+        // JSON UI
+        const jsonFile = document.getElementById('jsonFile');
+        const loadJsonBtn = document.getElementById('loadJsonBtn');
+        const jsonPlayBtn = document.getElementById('jsonPlayBtn');
+        const jsonStopBtn = document.getElementById('jsonStopBtn');
+        const jsonStatus = document.getElementById('jsonStatus');
+
+
+        const loadMusicXmlBtn = document.getElementById('loadMusicXmlBtn');
+        const mxPlayBtn = document.getElementById('mxPlayBtn');
+        const mxPauseBtn = document.getElementById('mxPauseBtn');
+        const mxStopBtn = document.getElementById('mxStopBtn');
+        const mxStatus = document.getElementById('mxStatus');
+        const osmdContainer = document.getElementById('osmdContainer');
+
+        // 設定
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const outerRadius = 180;
+        const innerRadius = 60;
+        const segments = 12; // 時間分割数（12音階に対応）
+        const octaves = 3;
+        const notesPerOctave = 12;
+
+        // キー（12音）ごとの色（C〜B）
+        // ちょいネオン寄りの“かっこいい”系：視認性優先で明度は確保
+        const segmentColors = [
+            '#00E5FF', // C  (Cyan)
+            '#7C4DFF', // C# (Violet)
+            '#FF1744', // D  (Neon Red)
+            '#FF9100', // D# (Orange)
+            '#FFD600', // E  (Yellow)
+            '#76FF03', // F  (Lime)
+            '#00E676', // F# (Green)
+            '#1DE9B6', // G  (Mint)
+            '#2979FF', // G# (Blue)
+            '#D500F9', // A  (Magenta)
+            '#FF4081', // A# (Pink)
+            '#B2FF59'  // B  (Light Lime)
+        ];
+
+        // オクターブ層の見分けが付くように、内側ほど少し濃く見える補正
+        function layerAlpha(layer) {
+            // layer: 0(内側=高音) → 2(外側=低音)
+            return 0.28 + (2 - layer) * 0.06; // 0.40 / 0.34 / 0.28
+        }
+
+        // ピンのデータ（視覚表示用）
+        let pins = [];
+        
+        // 録音データ（タイムスタンプ付き音符）
+        let recordedNotes = [];
+        let isRecording = false;
+        let recordStartTime = 0;
+        
+        // 再生状態
+        let isPlaying = false;
+        let playbackIndex = 0;
+        let playbackStartTime = 0;
+        let playbackTimeoutIds = [];
+        
+        // Tone.js 録音用
+        let recorder = null;
+        
+        // Tone.js シンセサイザー（オルゴール風の音）
+        const synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sine' },
+            envelope: {
+                attack: 0.001,
+                decay: 0.3,
+                sustain: 0.1,
+                release: 0.8
+            }
+        }).toDestination();
+        
+        synth.volume.value = -10;
+
+        // 音階（C4を基準に3オクターブ）
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const baseOctave = 4;
+
+        // 凡例（キー別カラー）を自動生成
+        const legendEl = document.getElementById('legend');
+        if (legendEl) {
+            legendEl.innerHTML = noteNames.map((n, i) => {
+                const c = segmentColors[i % segmentColors.length];
+                return `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: ${c};"></div>
+                        <span>${n}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        
+        function getNoteFromLayerAndSegment(layer, segment) {
+            const octave = baseOctave + (2 - layer); // 内側が高音
+            const noteIndex = segment % notesPerOctave; // segment 0-11 が直接音階に対応
+            return noteNames[noteIndex] + octave;
+        }
+
+        // 円盤を描画
+        function drawDisc() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const layerThickness = (outerRadius - innerRadius) / octaves;
+            
+            // 各オクターブの層を描画
+            for (let layer = 0; layer < octaves; layer++) {
+                const r1 = innerRadius + layer * layerThickness;
+                const r2 = innerRadius + (layer + 1) * layerThickness;
+                
+                // セグメント分割線を描画
+                for (let i = 0; i < segments; i++) {
+                    const angle1 = (i / segments) * Math.PI * 2 - Math.PI / 2;
+                    const angle2 = ((i + 1) / segments) * Math.PI * 2 - Math.PI / 2;
+                    
+                    // 塗りつぶし
+                    ctx.fillStyle = segmentColors[i % segmentColors.length];
+                    ctx.globalAlpha = layerAlpha(layer) + (i % 2) * 0.04;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, r2, angle1, angle2);
+                    ctx.arc(centerX, centerY, r1, angle2, angle1, true);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // 分割線
+                    ctx.strokeStyle = '#ddd';
+                    ctx.lineWidth = 1;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        centerX + r1 * Math.cos(angle1),
+                        centerY + r1 * Math.sin(angle1)
+                    );
+                    ctx.lineTo(
+                        centerX + r2 * Math.cos(angle1),
+                        centerY + r2 * Math.sin(angle1)
+                    );
+                    ctx.stroke();
+                }
+                
+                // 外周の円
+                ctx.strokeStyle = '#999';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // 中心円
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
+        }
+
+        // ピンを描画
+        function drawPins() {
+            pins.forEach(pin => {
+                const layerThickness = (outerRadius - innerRadius) / octaves;
+                const radius = innerRadius + (pin.layer + 0.5) * layerThickness;
+                const angle = ((pin.segment + 0.5) / segments) * Math.PI * 2 - Math.PI / 2;
+                
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                
+                // ピンの影
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.arc(x + 2, y + 2, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // ピン本体
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = segmentColors[pin.segment % segmentColors.length];
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 中心の点
+                ctx.fillStyle = segmentColors[pin.segment % segmentColors.length];
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // 全体を描画
+        function draw() {
+            drawDisc();
+            drawPins();
+        }
+        // クリック/タップ/マルチタッチ処理（Pointer Events）
+        // - スマホの複数同時押しで和音を鳴らす
+        // - 押している間は音を鳴らし続け、離したら止める
+        function hitTest(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) + Math.PI / 2;
+            const normalizedAngle = (angle + Math.PI * 2) % (Math.PI * 2);
+
+            // 範囲内かチェック
+            if (distance < innerRadius || distance > outerRadius) return null;
+
+            // どの層か判定
+            const layerThickness = (outerRadius - innerRadius) / octaves;
+            const layer = Math.floor((distance - innerRadius) / layerThickness);
+
+            // どのセグメントか判定
+            const segment = Math.floor((normalizedAngle / (Math.PI * 2)) * segments);
+
+            // 音符を取得
+            const note = getNoteFromLayerAndSegment(layer, segment);
+            return { layer, segment, note };
+        }
+
+        const activePointers = new Map(); // pointerId -> { note, pin }
+
+        async function onPointerDown(e) {
+            // iOS対策：最初の操作でAudioを解放
+            await Tone.start();
+
+            const hit = hitTest(e.clientX, e.clientY);
+            if (!hit) return;
+
+            e.preventDefault();
+            try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+
+            // すでに同じpointerIdが鳴っているなら無視
+            if (activePointers.has(e.pointerId)) return;
+
+            // 音を鳴らす（押している間）
+            synth.triggerAttack(hit.note);
+
+            // 視覚的なピン（押している間表示）
+            const pin = { layer: hit.layer, segment: hit.segment };
+            pins.push(pin);
+            draw();
+
+            activePointers.set(e.pointerId, { note: hit.note, pin });
+
+            // 録音中なら記録（押下の瞬間だけ）
+            if (isRecording) {
+                const timestamp = Date.now() - recordStartTime;
+                recordedNotes.push({
+                    timestamp,
+                    note: hit.note,
+                    layer: hit.layer,
+                    segment: hit.segment
+                });
+            }
+        }
+
+        function stopPointer(e) {
+            const state = activePointers.get(e.pointerId);
+            if (!state) return;
+
+            e.preventDefault();
+
+            // 音を止める
+            synth.triggerRelease(state.note);
+
+            // ピンを外す
+            const idx = pins.indexOf(state.pin);
+            if (idx > -1) pins.splice(idx, 1);
+            draw();
+
+            activePointers.delete(e.pointerId);
+        }
+
+        // Pointer Events（PC/スマホ統一）
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointerup', stopPointer);
+        canvas.addEventListener('pointercancel', stopPointer);
+        canvas.addEventListener('pointerleave', stopPointer);
+
+        // 録音開始
+        async function startRecording() {
+            await Tone.start();
+            
+            isRecording = true;
+            recordedNotes = [];
+            recordStartTime = Date.now();
+            
+            // 音声録音開始
+            recorder = new Tone.Recorder();
+            synth.connect(recorder);
+            recorder.start();
+            
+            recordBtn.disabled = true;
+            stopRecordBtn.disabled = false;
+            playBtn.disabled = true;
+            clearBtn.disabled = true;
+            exportJsonBtn.disabled = true;
+            exportAudioBtn.disabled = true;
+            
+            recordBtn.textContent = '🔴 録音中...';
+        }
+
+        // 録音停止
+        async function stopRecording() {
+            isRecording = false;
+            
+            // 音声録音停止
+            const recording = await recorder.stop();
+            const url = URL.createObjectURL(recording);
+            
+            // ダウンロードリンクを保存（後で使用）
+            window.recordedAudioUrl = url;
+            
+            recordBtn.disabled = false;
+            stopRecordBtn.disabled = true;
+            recordBtn.textContent = '⏺ 録音開始';
+            
+            if (recordedNotes.length > 0) {
+                playBtn.disabled = false;
+                clearBtn.disabled = false;
+                exportJsonBtn.disabled = false;
+                exportAudioBtn.disabled = false;
+            }
+        }
+
+        // 再生処理
+        function play() {
+            if (isPlaying || recordedNotes.length === 0) return;
+            
+            isPlaying = true;
+            playbackIndex = 0;
+            playbackStartTime = Date.now();
+            playbackTimeoutIds = [];
+            
+            recordBtn.disabled = true;
+            playBtn.disabled = true;
+            stopBtn.disabled = false;
+            clearBtn.disabled = true;
+            
+            // 各音符をスケジュール
+            recordedNotes.forEach((noteData, index) => {
+                const timeoutId = setTimeout(() => {
+                    synth.triggerAttackRelease(noteData.note, '8n');
+                    
+                    // 視覚的フィードバック
+                    const tempPin = { layer: noteData.layer, segment: noteData.segment };
+                    pins.push(tempPin);
+                    draw();
+                    setTimeout(() => {
+                        const idx = pins.indexOf(tempPin);
+                        if (idx > -1) pins.splice(idx, 1);
+                        draw();
+                    }, 200);
+                    
+                    // 最後の音符なら再生終了
+                    if (index === recordedNotes.length - 1) {
+                        setTimeout(() => {
+                            if (isPlaying) stop();
+                        }, 500);
+                    }
+                }, noteData.timestamp);
+                
+                playbackTimeoutIds.push(timeoutId);
+            });
+        }
+
+        function stop() {
+            isPlaying = false;
+            
+            // スケジュール済みの音符をキャンセル
+            playbackTimeoutIds.forEach(id => clearTimeout(id));
+            playbackTimeoutIds = [];
+            
+            recordBtn.disabled = false;
+            playBtn.disabled = false;
+            stopBtn.disabled = true;
+            clearBtn.disabled = false;
+            
+            pins = [];
+            draw();
+        }
+
+        function clear() {
+            recordedNotes = [];
+            pins = [];
+            
+            playBtn.disabled = true;
+            clearBtn.disabled = true;
+            exportJsonBtn.disabled = true;
+            exportAudioBtn.disabled = true;
+            
+            draw();
+        }
+
+        // JSONエクスポート
+        function exportJson() {
+            const data = {
+                version: '1.0',
+                notes: recordedNotes.map(n => ({
+                    timestamp: n.timestamp,
+                    note: n.note
+                }))
+            };
+            
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'music-box-' + Date.now() + '.json';
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        // 音声エクスポート
+        function exportAudio() {
+            if (!window.recordedAudioUrl) {
+                alert('音声データがありません');
+                return;
+            }
+            
+            const a = document.createElement('a');
+            a.href = window.recordedAudioUrl;
+            a.download = 'music-box-' + Date.now() + '.webm';
+            a.click();
+        }
+
+
+        // -----------------------------
+        // JSON → 再生（WebAudio/Tone.js）
+        // -----------------------------
+        let loadedJson = null;
+        let jsonIsPlaying = false;
+        let jsonTimeoutIds = [];
+
+        function setJsonStatus(text) {
+            if (jsonStatus) jsonStatus.textContent = text;
+        }
+
+        function setJsonButtons({ loaded = false, playing = false } = {}) {
+            if (!jsonPlayBtn || !jsonStopBtn) return;
+            jsonPlayBtn.disabled = !loaded || playing;
+            jsonStopBtn.disabled = !loaded || !playing;
+        }
+
+        function noteToLayerSegment(noteStr) {
+            // noteStr: e.g. C#5, A4
+            const m = String(noteStr).match(/^([A-G])(#?)(-?\d+)$/);
+            if (!m) return null;
+            const name = m[1] + (m[2] || '');
+            const octave = parseInt(m[3], 10);
+            const segment = noteNames.indexOf(name);
+            if (segment < 0) return null;
+            // getNoteFromLayerAndSegment: octave = baseOctave + (2 - layer)
+            const layer = Math.max(0, Math.min(octaves - 1, 2 - (octave - baseOctave)));
+            return { layer, segment };
+        }
+
+        function normalizeJson(obj) {
+            // Accept formats:
+            // A) { version:'1.0', notes:[{timestamp, note, layer?, segment?}] }  (this app export)
+            // B) { bpm:120, notes:[{t:0.0, p:'C4'|['C4','E4'], d:0.25}] }     (beats-based)
+            // C) { bpm:120, notes:[{timestamp:123, note:'C4', duration:250}] } (ms-based)
+            if (!obj || typeof obj !== 'object') return null;
+            if (!Array.isArray(obj.notes) || obj.notes.length === 0) return null;
+
+            const bpm = obj.bpm != null ? Number(obj.bpm) : null;
+            const notes = [];
+
+            // Detect beats-based if notes contain 't' and 'd'
+            const looksBeats = bpm && obj.notes.some(n => n && ('t' in n));
+            const msPerBeat = looksBeats ? (60000 / (Number(bpm) || 120)) : null;
+
+            for (const n of obj.notes) {
+                if (!n) continue;
+
+                // Pick pitch
+                const pitch = n.note ?? n.p;
+                if (pitch == null) continue;
+
+                // Timing
+                let timestamp = 0;
+                if (looksBeats) {
+                    timestamp = Number(n.t ?? 0) * msPerBeat;
+                } else {
+                    timestamp = Number(n.timestamp ?? n.timeMs ?? n.t ?? 0);
+                }
+
+                // Duration (optional)
+                let durationMs = null;
+                if (looksBeats && ('d' in n)) {
+                    durationMs = Number(n.d ?? 0) * msPerBeat;
+                } else if ('duration' in n || 'durationMs' in n) {
+                    durationMs = Number(n.duration ?? n.durationMs);
+                }
+
+                notes.push({
+                    timestamp: Math.max(0, timestamp),
+                    note: pitch,
+                    durationMs,
+                    layer: (typeof n.layer === 'number') ? n.layer : undefined,
+                    segment: (typeof n.segment === 'number') ? n.segment : undefined
+                });
+            }
+
+            notes.sort((a, b) => a.timestamp - b.timestamp);
+            return { bpm, notes };
+        }
+
+        async function loadJsonFromFile() {
+            const f = jsonFile?.files?.[0];
+            if (!f) {
+                alert('JSONファイルを選択してください');
+                return;
+            }
+            try {
+                const text = await f.text();
+                const obj = JSON.parse(text);
+                const normalized = normalizeJson(obj);
+                if (!normalized || !normalized.notes.length) {
+                    loadedJson = null;
+                    setJsonStatus('読み込みに失敗しました（JSON形式が違います）');
+                    setJsonButtons({ loaded: false });
+                    return;
+                }
+                loadedJson = normalized;
+                setJsonStatus(`読み込みOK: ${normalized.notes.length}音${normalized.bpm ? ` / BPM ${normalized.bpm}` : ''}`);
+                setJsonButtons({ loaded: true, playing: false });
+            } catch (err) {
+                console.error(err);
+                loadedJson = null;
+                setJsonStatus('読み込みに失敗しました（JSONが壊れている可能性）');
+                setJsonButtons({ loaded: false });
+            }
+        }
+
+        function schedulePinFlash(pinInfo) {
+            if (!pinInfo) return;
+            const tempPin = { layer: pinInfo.layer, segment: pinInfo.segment };
+            pins.push(tempPin);
+            draw();
+            setTimeout(() => {
+                const idx = pins.indexOf(tempPin);
+                if (idx > -1) pins.splice(idx, 1);
+                draw();
+            }, 200);
+        }
+
+        async function playJson() {
+            if (!loadedJson || jsonIsPlaying) return;
+            await Tone.start();
+            jsonIsPlaying = true;
+            setJsonButtons({ loaded: true, playing: true });
+            setJsonStatus('再生中...');
+            jsonTimeoutIds = [];
+
+            const notes = loadedJson.notes;
+
+            notes.forEach((n, idx) => {
+                const tid = setTimeout(() => {
+                    const pitches = Array.isArray(n.note) ? n.note : [n.note];
+                    pitches.forEach(p => synth.triggerAttackRelease(p, '8n'));
+
+                    const pinInfo = (typeof n.layer === 'number' && typeof n.segment === 'number')
+                        ? { layer: n.layer, segment: n.segment }
+                        : noteToLayerSegment(pitches[0]);
+                    schedulePinFlash(pinInfo);
+
+                    if (idx === notes.length - 1) {
+                        setTimeout(() => {
+                            if (jsonIsPlaying) stopJson();
+                        }, 500);
+                    }
+                }, n.timestamp);
+                jsonTimeoutIds.push(tid);
+            });
+        }
+
+        function stopJson() {
+            jsonIsPlaying = false;
+            jsonTimeoutIds.forEach(id => clearTimeout(id));
+            jsonTimeoutIds = [];
+            if (loadedJson) setJsonButtons({ loaded: true, playing: false });
+            setJsonStatus('停止しました');
+            pins = [];
+            draw();
+        }
+
+        // -----------------------------
+        // MusicXML → 楽譜表示 & 再生（OSMD + osmd-audio-player）
+        // -----------------------------
+        let osmd = null;
+        let mxPlayer = null;
+
+        function setMxStatus(text) {
+            if (mxStatus) mxStatus.textContent = text;
+        }
+
+        function setMxButtons({ loaded = false, playing = false, paused = false } = {}) {
+            if (!mxPlayBtn || !mxPauseBtn || !mxStopBtn) return;
+            mxPlayBtn.disabled = !loaded || playing;
+            mxPauseBtn.disabled = !loaded || (!playing && !paused);
+            mxStopBtn.disabled = !loaded || (!playing && !paused);
+        }
+
+        async function loadMusicXmlText(xmlText) {
+            if (!window.opensheetmusicdisplay || !window.OsmdAudioPlayer) {
+                setMxStatus('ライブラリの読み込みに失敗しました（OSMD / osmd-audio-player）');
+                return;
+            }
+
+            try {
+                setMxStatus('読み込み中...');
+
+                // 既存プレイヤー停止
+                if (mxPlayer) {
+                    try { mxPlayer.stop(); } catch (_) {}
+                }
+
+                // OSMD 初期化（初回だけ）
+                if (!osmd) {
+                    osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(osmdContainer, {
+                        drawingParameters: 'compact',
+                        autoResize: true
+                    });
+                }
+
+                await osmd.load(xmlText);
+                osmd.render();
+
+                mxPlayer = new OsmdAudioPlayer();
+                // loadScore は Promise を返す版と返さない版があるので両対応
+                const maybePromise = mxPlayer.loadScore(osmd);
+                if (maybePromise && typeof maybePromise.then === 'function') {
+                    await maybePromise;
+                }
+
+                setMxStatus('準備OK。▶ 再生できます');
+                setMxButtons({ loaded: true, playing: false, paused: false });
+            } catch (err) {
+                console.error(err);
+                setMxStatus('読み込みに失敗しました（MusicXMLの形式を確認してください）');
+                setMxButtons({ loaded: false });
+            }
+        }
+
+        async function loadMusicXmlFromFile() {
+            const f = musicXmlFile?.files?.[0];
+            if (!f) {
+                alert('MusicXML（.xml / .musicxml）ファイルを選択してください');
+                return;
+            }
+            const text = await f.text();
+            await loadMusicXmlText(text);
+        }
+
+        function mxPlay() {
+            if (!mxPlayer) return;
+            // こっちの円盤録音再生と混ざるのを避ける
+            if (isPlaying) stop();
+
+            try {
+                mxPlayer.play();
+                setMxStatus('再生中...');
+                setMxButtons({ loaded: true, playing: true, paused: false });
+            } catch (err) {
+                console.error(err);
+                setMxStatus('再生に失敗しました（ブラウザの音声許可を確認）');
+            }
+        }
+
+        function mxPause() {
+            if (!mxPlayer) return;
+            try {
+                mxPlayer.pause();
+                setMxStatus('一時停止中');
+                setMxButtons({ loaded: true, playing: false, paused: true });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function mxStop() {
+            if (!mxPlayer) return;
+            try {
+                mxPlayer.stop();
+                setMxStatus('停止しました');
+                setMxButtons({ loaded: true, playing: false, paused: false });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // イベントリスナー
+        recordBtn.addEventListener('click', startRecording);
+
+        // JSON
+        if (loadJsonBtn) loadJsonBtn.addEventListener('click', loadJsonFromFile);
+        if (jsonPlayBtn) jsonPlayBtn.addEventListener('click', playJson);
+        if (jsonStopBtn) jsonStopBtn.addEventListener('click', stopJson);
+
+
+        stopRecordBtn.addEventListener('click', stopRecording);
+        playBtn.addEventListener('click', play);
+        stopBtn.addEventListener('click', stop);
+        clearBtn.addEventListener('click', clear);
+        exportJsonBtn.addEventListener('click', exportJson);
+        exportAudioBtn.addEventListener('click', exportAudio);
+
+        // MusicXML
+        if (loadMusicXmlBtn) loadMusicXmlBtn.addEventListener('click', loadMusicXmlFromFile);
+        if (mxPlayBtn) mxPlayBtn.addEventListener('click', mxPlay);
+        if (mxPauseBtn) mxPauseBtn.addEventListener('click', mxPause);
+        if (mxStopBtn) mxStopBtn.addEventListener('click', mxStop);
+
+        // 初期描画
+        draw();
+    </script>
+</body>
+</html>
