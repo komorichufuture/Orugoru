@@ -1,5 +1,7 @@
-// 3オクターブ（C3〜B5）
-// 外部ライブラリなし / AudioContext 1個 / 低負荷
+// 2段鍵盤：
+// 上段 C5〜B6（2オクターブ）
+// 下段 C4〜B5（2オクターブ）
+// ※重複部分(C5〜B5)は上下に両方置く設計（弾きやすさ優先）
 
 let audioCtx = null;
 
@@ -38,59 +40,71 @@ function bindKey(el, freq) {
   }, { passive: false });
 }
 
-const whiteKeysEl = document.getElementById('whiteKeys');
-const blackLayerEl = document.getElementById('blackLayer');
-
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];       // C D E F G A B
 const BLACK_OFFSETS = [1, 3, 6, 8, 10];             // C# D# F# G# A#
-const BLACK_LEFT_WHITE_INDEX = [0, 1, 3, 4, 5];      // 黒鍵の左側にある白鍵の位置（1オクターブ内）
+const BLACK_LEFT_WHITE_INDEX = [0, 1, 3, 4, 5];      // 黒鍵の左白鍵位置（オクターブ内）
 
-const START_MIDI_C3 = 48; // C3
-const OCTAVES = 3;
+function renderRow({ whiteEl, blackEl, startMidiC, startOctaveLabel }) {
+  // 2オクターブ = 白鍵14本
+  const whiteCount = 14;
+  const whiteW = 100 / whiteCount;   // %
+  const blackW = whiteW * 0.65;
 
-const whiteCount = 7 * OCTAVES;   // 21
-const whiteW = 100 / whiteCount;  // %
-const blackW = whiteW * 0.65;     // 黒鍵幅（白鍵の65%）
-
-function render() {
-  // 白鍵：C3〜B5
-  for (let o = 0; o < OCTAVES; o++) {
-    const octaveNumber = 3 + o;
+  // 白鍵生成（2オクターブ）
+  for (let o = 0; o < 2; o++) {
+    const octaveNumber = startOctaveLabel + o; // 表示用
     for (let i = 0; i < 7; i++) {
-      const midi = START_MIDI_C3 + o * 12 + WHITE_OFFSETS[i];
+      const midi = startMidiC + o * 12 + WHITE_OFFSETS[i];
       const name = ['C','D','E','F','G','A','B'][i] + octaveNumber;
 
       const div = document.createElement('div');
       div.className = 'white';
       div.textContent = name;
-
       bindKey(div, midiToFreq(midi));
-      whiteKeysEl.appendChild(div);
+      whiteEl.appendChild(div);
     }
   }
 
-  // 黒鍵：各オクターブ5本
-  for (let o = 0; o < OCTAVES; o++) {
-    const octaveNumber = 3 + o;
+  // 黒鍵生成（2オクターブ=10本）
+  for (let o = 0; o < 2; o++) {
+    const octaveNumber = startOctaveLabel + o;
     for (let k = 0; k < 5; k++) {
-      const midi = START_MIDI_C3 + o * 12 + BLACK_OFFSETS[k];
+      const midi = startMidiC + o * 12 + BLACK_OFFSETS[k];
       const name = ['C#','D#','F#','G#','A#'][k] + octaveNumber;
 
-      // 黒鍵位置計算：境界の中心に置く
-      const leftWhiteIndexGlobal = o * 7 + BLACK_LEFT_WHITE_INDEX[k]; // 0..20
-      const leftPercent = (leftWhiteIndexGlobal + 1) * whiteW - blackW / 2;
+      // 左白鍵index（0..13）
+      const leftWhiteIndex = o * 7 + BLACK_LEFT_WHITE_INDEX[k];
+      const leftPercent = (leftWhiteIndex + 1) * whiteW - blackW / 2;
 
       const div = document.createElement('div');
       div.className = 'black';
       div.textContent = name;
-
       div.style.width = `${blackW}%`;
       div.style.left = `${leftPercent}%`;
 
       bindKey(div, midiToFreq(midi));
-      blackLayerEl.appendChild(div);
+      blackEl.appendChild(div);
     }
   }
 }
 
-render();
+const kbdHigh = document.getElementById('kbdHigh');
+const blackHigh = document.getElementById('blackHigh');
+const kbdLow = document.getElementById('kbdLow');
+const blackLow = document.getElementById('blackLow');
+
+// 上段：C5(72)〜
+renderRow({
+  whiteEl: kbdHigh,
+  blackEl: blackHigh,
+  startMidiC: 72,          // C5
+  startOctaveLabel: 5
+});
+
+// 下段：C4(60)〜
+renderRow({
+  whiteEl: kbdLow,
+  blackEl: blackLow,
+  startMidiC: 60,          // C4
+  startOctaveLabel: 4
+});
